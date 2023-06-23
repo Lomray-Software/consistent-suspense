@@ -7,7 +7,8 @@ import copy from 'rollup-plugin-copy';
 
 export default {
   input: [
-    'src/**/*.ts*',
+    'src/index.ts',
+    'src/server/stream-stores.ts',
   ],
   output: {
     dir: 'lib',

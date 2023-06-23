@@ -4,12 +4,14 @@ import React, {
   Suspense as DefaultSuspense,
   useMemo,
   useId as useReactId,
+  Children,
 } from 'react';
 import SuspenseStore from './suspense-store';
 
 export interface IConsistentSuspense {
   contextId: string;
   parentId: string;
+  suspenseId: string;
   store: SuspenseStore;
 }
 
@@ -21,6 +23,7 @@ type TConsistentSuspenseProvider = Partial<IConsistentSuspense>;
 const ConsistentSuspenseContext = React.createContext<IConsistentSuspense>({
   parentId: '',
   contextId: '',
+  suspenseId: '',
   store: SuspenseStore.create(),
 });
 
@@ -32,12 +35,14 @@ const ConsistentSuspenseProvider: FC<PropsWithChildren<TConsistentSuspenseProvid
   children,
   parentId = '',
   contextId = '',
+  suspenseId = '',
   store = SuspenseStore.create(),
 }) => {
   const value = useMemo(
     () => ({
       parentId,
       contextId,
+      suspenseId,
       store,
     }),
     [contextId, store, parentId],
@@ -66,14 +71,32 @@ const useId = (): string => {
  * Wrap original suspense to provide consistent id's
  * @constructor
  */
-const Suspense: FC<SuspenseProps> = (props) => {
+const Suspense: FC<SuspenseProps> = ({ children, fallback, ...props }) => {
+  const id = useId();
   const { store, parentId } = useConsistentSuspenseContext();
   const cacheKey = useReactId(); // stable between re-render
   const contextId = store.getContextId(parentId, cacheKey);
 
+  /**
+   * Add lifebuoy
+   */
+  const fallbackWithId = store.hasLifebuoy ? (
+    <>
+      <script data-suspense-id={id} data-count={Children.count(children)} />
+      {fallback}
+    </>
+  ) : (
+    fallback
+  );
+
   return (
-    <ConsistentSuspenseProvider store={store} parentId={contextId} contextId={contextId}>
-      <DefaultSuspense {...props} />
+    <ConsistentSuspenseProvider
+      store={store}
+      parentId={contextId}
+      contextId={contextId}
+      suspenseId={id}
+    >
+      <DefaultSuspense {...props} children={children} fallback={fallbackWithId} />;
     </ConsistentSuspenseProvider>
   );
 };

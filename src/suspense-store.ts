@@ -25,6 +25,13 @@ class SuspenseStore {
   protected cacheId: Map<string, string> = new Map();
 
   /**
+   * Add to each suspense fallback special <script />
+   * with unique id, it's help parse stream output and bind server data (e.g. state)
+   * @protected
+   */
+  public hasLifebuoy = true;
+
+  /**
    * @constructor
    */
   protected constructor() {
@@ -36,6 +43,13 @@ class SuspenseStore {
    */
   public static create(): SuspenseStore {
     return new SuspenseStore();
+  }
+
+  /**
+   * Toggle lifebuoy status
+   */
+  public setHasLifebuoy(hasLifebuoy: boolean): void {
+    this.hasLifebuoy = hasLifebuoy;
   }
 
   /**
