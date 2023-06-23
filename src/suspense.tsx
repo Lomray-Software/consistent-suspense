@@ -101,4 +101,4 @@ const Suspense: FC<SuspenseProps> = ({ children, fallback, ...props }) => {
   );
 };
 
-export { Suspense, useId, ConsistentSuspenseProvider };
+export { Suspense, useId, ConsistentSuspenseProvider, useConsistentSuspenseContext };
