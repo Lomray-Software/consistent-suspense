@@ -5,13 +5,12 @@ class StreamSuspense {
   /**
    * Obtained suspense from application shell
    */
-  protected suspendIds: Map<string, { contextId: string; count: number }>;
+  protected suspendIds: Map<string, { contextId: string }> = new Map();
 
   /**
    * Fired when react stream write complete suspense
-   * count - children count inside suspense
    */
-  protected callback: (suspenseId: string, count: number) => string | undefined;
+  protected callback: (suspenseId: string) => string | undefined | void;
 
   /**
    * @constructor
@@ -30,7 +29,7 @@ class StreamSuspense {
   /**
    * Analyze react stream html and call callback if suspense output found.
    */
-  public analyze(html: string): string | undefined {
+  public analyze(html: string): string | undefined | void {
     this.obtainSuspense(html);
 
     return this.obtainCompleteSuspense(html);
@@ -40,15 +39,10 @@ class StreamSuspense {
    * Parse suspense and related stores context id from application shell
    */
   protected obtainSuspense(html: string): void {
-    // If app shell streams only once, run parser only once
-    if (this.suspendIds) {
-      return;
-    }
-
     // try to find suspense ids with store context ids (react doesn't provide any api to obtain suspend id)
     const matchedTemplates = [
       ...html.matchAll(
-        /<template id="(?<templateId>[^"]+)".+?<script data-context-id="(?<contextId>[^"]+)".+?data-count="(?<count>[^"]+)">/g,
+        /<template id="(?<templateId>[^"]+)".+?<script data-suspense-id="(?<contextId>[^"]+)" \/>/g,
       ),
     ];
 
@@ -56,16 +50,14 @@ class StreamSuspense {
       return;
     }
 
-    this.suspendIds = new Map();
-
     matchedTemplates.forEach(({ groups }) => {
-      const { templateId, contextId, count } = groups ?? {};
+      const { templateId, contextId } = groups ?? {};
 
       if (!templateId) {
         return;
       }
 
-      this.suspendIds.set(templateId, { contextId, count: Number(count) });
+      this.suspendIds.set(templateId, { contextId });
     });
   }
 
@@ -86,7 +78,7 @@ class StreamSuspense {
   /**
    * Parse complete suspense chunk
    */
-  protected obtainCompleteSuspense(html: string): string | undefined {
+  protected obtainCompleteSuspense(html: string): string | undefined | void {
     // each suspense begin from
     if (!html.startsWith('<div hidden id=')) {
       return;
@@ -100,13 +92,15 @@ class StreamSuspense {
       return;
     }
 
-    const { contextId, count } = this.suspendIds.get(suspendId) ?? {};
+    const { contextId } = this.suspendIds.get(suspendId) ?? {};
 
-    if (!contextId || !count) {
+    if (!contextId) {
       return;
     }
 
-    return this.callback(contextId, count);
+    this.suspendIds.delete(suspendId);
+
+    return this.callback(contextId);
   }
 }
 

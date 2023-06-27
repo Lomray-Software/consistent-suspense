@@ -8,7 +8,7 @@ import copy from 'rollup-plugin-copy';
 export default {
   input: [
     'src/index.ts',
-    'src/server/stream-stores.ts',
+    'src/server/index.ts',
   ],
   output: {
     dir: 'lib',
@@ -18,7 +18,7 @@ export default {
     preserveModulesRoot: 'src',
     exports: 'auto',
   },
-  external: ['axios', 'lodash'],
+  external: [],
   plugins: [
     folderInput(),
     typescript({

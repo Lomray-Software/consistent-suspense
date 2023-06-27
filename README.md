@@ -12,7 +12,7 @@
 
 React `useId()` doesn't return a stable ID when used inside `<Suspense>`. This is a huge problem that slows down the development of libraries for concurrent mode in React. [Read related issue.](https://github.com/facebook/react/issues/24669)
 
-Another problem is the synchronization of the client and server when streaming html. This package also helps to analyze suspense chunks.
+Another problem is the synchronization state of the client and server when streaming html. This package also helps to analyze suspense chunks.
 
 ## Getting started
 
@@ -35,7 +35,7 @@ const App: FC = () => {
 
     return (
         <ConsistentSuspenseProvider>
-          <Suspense>
+          <Suspense fallback={<div>Loading...</div>}>
             <SomeComponent />
           </Suspense>
         </ConsistentSuspenseProvider>
@@ -46,6 +46,7 @@ const App: FC = () => {
  * 3. Now any components inside ConsistentSuspenseProvider can generate consistent id's
  */
 const SomeComponent: FC = () => {
+    // this id will be the same between client and server
     const id = useId();
     
     return (
@@ -59,10 +60,11 @@ const SomeComponent: FC = () => {
 import StreamSuspense from '@lomray/consistent-suspense/server';
 
 app.use('*', (req, res, next) => {
-    const suspenseStream = StreamSuspense.create((suspenseId, count) => {
+    const suspenseStream = StreamSuspense.create((suspenseId) => {
       // do something
-      
-      return '<script>var suspenseState = {};</script>';
+      const anyState = anyStateManager.toJSON();
+
+      return `<script>var managerState = ${anyState};</script>`;
     });
 
   /**
@@ -71,12 +73,14 @@ app.use('*', (req, res, next) => {
    */
     const write = res.write.bind(res);
     res.write = (data, ...args): boolean => {
+      // be careful, data can be uint8 or string, you need handle it (use Buffer)
       const additionalHtml = suspenseStream.analyze(data);
 
       return write(additionalHtml + data, ...args) as boolean;
     }
 });
 ```
+Investigate [mobx manager](https://github.com/Lomray-Software/react-mobx-manager/blob/staging/src/with-stores.tsx#L28) to more understand how it works.
 
 ## Bugs and feature requests
 
