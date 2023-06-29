@@ -159,7 +159,7 @@ class SuspenseStore {
 
       const isNamespace = namespaceId !== suspenseId;
       const suspenseNamespace = this.namespaces.get(suspenseId)!;
-      const currNamespace = isNamespace
+      let currNamespace = isNamespace
         ? suspenseNamespace.subNamespaces.get(namespaceId)
         : suspenseNamespace;
 
@@ -169,6 +169,8 @@ class SuspenseStore {
           elementLetter: '',
           startLetter: '',
         });
+
+        currNamespace = suspenseNamespace.subNamespaces.get(namespaceId);
       }
 
       currNamespace!.elementLetter = this.getNextLetter(currNamespace!.elementLetter);
