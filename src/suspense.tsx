@@ -64,7 +64,7 @@ const useId = (): string => {
   const { store, suspenseId, namespaceId } = useConsistentSuspense();
   const cacheKey = useReactId(); // stable between re-render on hydration
 
-  return store.createId(namespaceId || suspenseId, cacheKey);
+  return store.createId(namespaceId || suspenseId, cacheKey, Boolean(namespaceId));
 };
 
 /**
@@ -74,7 +74,13 @@ const useId = (): string => {
 const SuspenseReset: FC<PropsWithChildren> = ({ children }) => {
   const { store, suspenseId, namespaceId } = useConsistentSuspense();
 
-  useState(() => store.resetSuspense(namespaceId || suspenseId));
+  useState(() => {
+    if (namespaceId) {
+      return store.resetNamespace(namespaceId);
+    }
+
+    return store.resetSuspense(suspenseId);
+  });
 
   return <>{children}</>;
 };

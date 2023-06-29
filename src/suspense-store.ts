@@ -10,13 +10,11 @@ class SuspenseStore {
     {
       suspenseLetter: string;
       elementLetter: string;
-      startLetter: string;
       subNamespaces: Map<
         string,
         {
           namespaceLetter: string;
           elementLetter: string;
-          startLetter: string;
         }
       >;
     }
@@ -26,6 +24,11 @@ class SuspenseStore {
    * Cache generated id's
    */
   protected cache: Map<string, string> = new Map();
+
+  /**
+   * Detect server side
+   */
+  protected isServer = typeof window === 'undefined';
 
   /**
    * Get next letter
@@ -63,11 +66,10 @@ class SuspenseStore {
   /**
    * Make namespace or reset
    */
-  protected makeNamespace(suspenseId: string, startLetter: string): void {
+  protected makeNamespace(suspenseId: string): void {
     this.namespaces.set(suspenseId, {
-      suspenseLetter: startLetter,
+      suspenseLetter: 'a',
       elementLetter: '',
-      startLetter,
       subNamespaces: new Map(),
     });
   }
@@ -84,13 +86,15 @@ class SuspenseStore {
    */
   protected withCache(key: string, callback: () => string): string {
     // return from cache (strict mode fix)
-    if (this.cache.has(key)) {
+    if (this.cache.has(key) && !this.isServer) {
       return this.cache.get(key)!;
     }
 
     const result = callback();
 
-    this.cache.set(key, result);
+    if (!this.isServer) {
+      this.cache.set(key, result);
+    }
 
     return result;
   }
@@ -102,14 +106,13 @@ class SuspenseStore {
     return this.withCache(cacheKey, () => {
       let nextSuspenseId = this.makeSuspenseId('a', parentId);
       const currNamespace = this.namespaces.get(nextSuspenseId);
-      const startLetter = currNamespace ? '' : 'a';
 
       if (currNamespace) {
         currNamespace.suspenseLetter = this.getNextLetter(currNamespace.suspenseLetter);
         nextSuspenseId = this.makeSuspenseId(currNamespace.suspenseLetter, parentId);
       }
 
-      this.makeNamespace(nextSuspenseId, startLetter);
+      this.makeNamespace(nextSuspenseId);
 
       return nextSuspenseId;
     });
@@ -123,13 +126,12 @@ class SuspenseStore {
       const suspenseId = this.getSuspenseByNamespace(namespaceId);
 
       if (!this.namespaces.has(suspenseId)) {
-        this.makeNamespace(suspenseId, 'a');
+        this.makeNamespace(suspenseId);
       }
 
       let nextNamespaceId = this.makeSuspenseId('a', namespaceId, true);
       const suspenseNamespaces = this.namespaces.get(suspenseId)!.subNamespaces;
       const currNamespace = suspenseNamespaces.get(nextNamespaceId);
-      const startLetter = currNamespace ? '' : 'a';
 
       if (currNamespace) {
         currNamespace.namespaceLetter = this.getNextLetter(currNamespace.namespaceLetter);
@@ -137,9 +139,8 @@ class SuspenseStore {
       }
 
       suspenseNamespaces.set(nextNamespaceId, {
-        namespaceLetter: startLetter,
+        namespaceLetter: 'a',
         elementLetter: '',
-        startLetter,
       });
 
       return nextNamespaceId;
@@ -149,15 +150,14 @@ class SuspenseStore {
   /**
    * Generate consistent id which doesn't change inside suspense
    */
-  public createId(namespaceId: string, cacheKey: string): string {
+  public createId(namespaceId: string, cacheKey: string, isNamespace = false): string {
     return this.withCache(cacheKey, () => {
       const suspenseId = this.getSuspenseByNamespace(namespaceId);
 
       if (!this.namespaces.has(suspenseId)) {
-        this.makeNamespace('', 'a');
+        this.makeNamespace(suspenseId);
       }
 
-      const isNamespace = namespaceId !== suspenseId;
       const suspenseNamespace = this.namespaces.get(suspenseId)!;
       let currNamespace = isNamespace
         ? suspenseNamespace.subNamespaces.get(namespaceId)
@@ -167,7 +167,6 @@ class SuspenseStore {
         suspenseNamespace.subNamespaces.set(namespaceId, {
           namespaceLetter: 'a',
           elementLetter: '',
-          startLetter: '',
         });
 
         currNamespace = suspenseNamespace.subNamespaces.get(namespaceId);
@@ -175,9 +174,8 @@ class SuspenseStore {
 
       currNamespace!.elementLetter = this.getNextLetter(currNamespace!.elementLetter);
 
-      this.cache.set(cacheKey, `${namespaceId}-${currNamespace!.elementLetter}`); // new id
-
-      return this.cache.get(cacheKey)!;
+      // new id
+      return `${namespaceId}-${currNamespace!.elementLetter}`;
     });
   }
 
@@ -191,9 +189,30 @@ class SuspenseStore {
       return;
     }
 
-    const { startLetter } = currNamespace;
+    this.makeNamespace(suspenseId);
+  }
 
-    this.makeNamespace(suspenseId, startLetter);
+  /**
+   * Reset all generated id's for current namespace
+   */
+  public resetNamespace(namespaceId: string): void {
+    const suspenseId = this.getSuspenseByNamespace(namespaceId);
+    const suspenseNamespace = this.namespaces.get(suspenseId);
+
+    if (!suspenseNamespace) {
+      return;
+    }
+
+    const currNamespace = suspenseNamespace.subNamespaces.get(namespaceId);
+
+    if (!currNamespace) {
+      return;
+    }
+
+    suspenseNamespace.subNamespaces.set(namespaceId, {
+      namespaceLetter: 'a',
+      elementLetter: '',
+    });
   }
 }
 
