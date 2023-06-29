@@ -38,6 +38,20 @@ const App: FC = () => {
           <Suspense fallback={<div>Loading...</div>}>
             <SomeComponent />
           </Suspense>
+
+          { 
+              /** in case when we have more then 1 async component inside suspense, 
+                we have to use 'NS' wrapper **/ 
+          }
+          <Suspense fallback={<div>Loading...</div>}>
+            <Suspense.NS> { /** this wrapper only for async component **/ }
+                <SomeComponent />
+            </Suspense.NS>
+
+            <Suspense.NS>
+                <SomeComponent />
+            </Suspense.NS>
+          </Suspense>
         </ConsistentSuspenseProvider>
     )
 }
@@ -62,7 +76,9 @@ import StreamSuspense from '@lomray/consistent-suspense/server';
 app.use('*', (req, res, next) => {
     const suspenseStream = StreamSuspense.create((suspenseId) => {
       // do something
-      const anyState = anyStateManager.toJSON();
+      const anyState = anyStateManager
+        .getStateForSuspense(suspenseId)
+        .toJSON();
 
       return `<script>var managerState = ${anyState};</script>`;
     });

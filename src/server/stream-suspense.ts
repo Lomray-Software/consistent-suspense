@@ -5,7 +5,7 @@ class StreamSuspense {
   /**
    * Obtained suspense from application shell
    */
-  protected suspendIds: Map<string, { contextId: string }> = new Map();
+  protected suspendIds: Map<string, { suspenseId: string }> = new Map();
 
   /**
    * Fired when react stream write complete suspense
@@ -42,7 +42,7 @@ class StreamSuspense {
     // try to find suspense ids with store context ids (react doesn't provide any api to obtain suspend id)
     const matchedTemplates = [
       ...html.matchAll(
-        /<template id="(?<templateId>[^"]+)".+?<script data-suspense-id="(?<contextId>[^"]+)" \/>/g,
+        /<template id="(?<templateId>[^"]+)".+?<script data-suspense-id="(?<suspenseId>[^"]+)">/g,
       ),
     ];
 
@@ -51,13 +51,13 @@ class StreamSuspense {
     }
 
     matchedTemplates.forEach(({ groups }) => {
-      const { templateId, contextId } = groups ?? {};
+      const { templateId, suspenseId } = groups ?? {};
 
       if (!templateId) {
         return;
       }
 
-      this.suspendIds.set(templateId, { contextId });
+      this.suspendIds.set(templateId, { suspenseId });
     });
   }
 
@@ -92,15 +92,15 @@ class StreamSuspense {
       return;
     }
 
-    const { contextId } = this.suspendIds.get(suspendId) ?? {};
+    const { suspenseId } = this.suspendIds.get(suspendId) ?? {};
 
-    if (!contextId) {
+    if (!suspenseId) {
       return;
     }
 
     this.suspendIds.delete(suspendId);
 
-    return this.callback(contextId);
+    return this.callback(suspenseId);
   }
 }
 

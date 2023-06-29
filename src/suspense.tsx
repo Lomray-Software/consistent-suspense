@@ -11,6 +11,7 @@ import SuspenseStore from './suspense-store';
 export interface IConsistentSuspense {
   suspenseId: string;
   parentId: string; // parent suspense id
+  namespaceId: string | null;
   store: SuspenseStore;
 }
 
@@ -22,6 +23,7 @@ type TConsistentSuspenseProvider = Partial<IConsistentSuspense>;
 const ConsistentSuspenseContext = React.createContext<IConsistentSuspense>({
   suspenseId: '',
   parentId: '',
+  namespaceId: null,
   store: new SuspenseStore(),
 });
 
@@ -33,12 +35,14 @@ const ConsistentSuspenseProvider: FC<PropsWithChildren<TConsistentSuspenseProvid
   children,
   parentId = '',
   suspenseId = '',
+  namespaceId = null,
   store = new SuspenseStore(),
 }) => {
   const value = useMemo(
     () => ({
       parentId,
       suspenseId,
+      namespaceId,
       store,
     }),
     [suspenseId, store, parentId],
@@ -54,34 +58,56 @@ const useConsistentSuspense = (): IConsistentSuspense => useContext(ConsistentSu
 
 /**
  * Generate consistent id
+ * prefix - e.g. use for libraries, it needed in hard cases when inside one suspense more than one promise
  */
 const useId = (): string => {
-  const { store, suspenseId } = useConsistentSuspense();
+  const { store, suspenseId, namespaceId } = useConsistentSuspense();
   const cacheKey = useReactId(); // stable between re-render on hydration
 
-  return store.getId(suspenseId, cacheKey);
+  return store.createId(namespaceId || suspenseId, cacheKey);
 };
 
 /**
  * Reset generated id's each time when suspense try to create element
  * @constructor
  */
-const SuspenseControl: FC<PropsWithChildren> = ({ children }) => {
-  const { suspenseId, store } = useConsistentSuspense();
+const SuspenseReset: FC<PropsWithChildren> = ({ children }) => {
+  const { store, suspenseId, namespaceId } = useConsistentSuspense();
 
-  useState(() => store.resetSuspense(suspenseId));
+  useState(() => store.resetSuspense(namespaceId || suspenseId));
 
   return <>{children}</>;
+};
+
+/**
+ * Create separated namespace id's for children
+ * @constructor
+ */
+const Namespace: FC<PropsWithChildren> = ({ children }) => {
+  const { store, parentId, suspenseId, namespaceId } = useConsistentSuspense();
+  const cacheKey = useReactId(); // stable between re-render on hydration
+  const nextNamespaceId = store.createNamespaceId(namespaceId || suspenseId, cacheKey);
+
+  return (
+    <ConsistentSuspenseProvider
+      store={store}
+      parentId={parentId}
+      suspenseId={suspenseId}
+      namespaceId={nextNamespaceId}
+    >
+      <SuspenseReset>{children}</SuspenseReset>
+    </ConsistentSuspenseProvider>
+  );
 };
 
 /**
  * Wrap original suspense to provide consistent id's
  * @constructor
  */
-const Suspense: FC<SuspenseProps> = ({ children, fallback }) => {
+const Suspense: FC<SuspenseProps> & { NS: typeof Namespace } = ({ children, fallback }) => {
   const { store, parentId } = useConsistentSuspense();
   const cacheKey = useReactId(); // stable between re-render on hydration
-  const suspenseId = store.getSuspenseId(parentId, cacheKey);
+  const suspenseId = store.createSuspenseId(parentId, cacheKey);
 
   /**
    * Add suspense label
@@ -92,13 +118,20 @@ const Suspense: FC<SuspenseProps> = ({ children, fallback }) => {
       {fallback}
     </>
   );
-  const childrenUnderControl = <SuspenseControl>{children}</SuspenseControl>;
+  const childrenWithReset = <SuspenseReset>{children}</SuspenseReset>;
 
   return (
-    <ConsistentSuspenseProvider store={store} parentId={suspenseId} suspenseId={suspenseId}>
-      <DefaultSuspense children={childrenUnderControl} fallback={fallbackWithId} />
+    <ConsistentSuspenseProvider
+      store={store}
+      parentId={suspenseId}
+      suspenseId={suspenseId}
+      namespaceId={null}
+    >
+      <DefaultSuspense children={childrenWithReset} fallback={fallbackWithId} />
     </ConsistentSuspenseProvider>
   );
 };
+
+Suspense.NS = Namespace;
 
 export { Suspense, ConsistentSuspenseProvider, useConsistentSuspense, useId };
