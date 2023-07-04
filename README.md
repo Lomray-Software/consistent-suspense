@@ -96,7 +96,7 @@ app.use('*', (req, res, next) => {
     }
 });
 ```
-Investigate [mobx manager](https://github.com/Lomray-Software/react-mobx-manager/blob/staging/src/with-stores.tsx#L28) to more understand how it works.
+Investigate [demo app](https://github.com/Lomray-Software/vite-template) to more understand how it works.
 
 ## Bugs and feature requests
 
