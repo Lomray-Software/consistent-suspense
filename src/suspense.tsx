@@ -15,6 +15,10 @@ export interface IConsistentSuspense {
   store: SuspenseStore;
 }
 
+export interface ISuspense extends SuspenseProps {
+  ErrorBoundary?: FC<PropsWithChildren>;
+}
+
 type TConsistentSuspenseProvider = Partial<IConsistentSuspense>;
 
 /**
@@ -110,7 +114,11 @@ const Namespace: FC<PropsWithChildren> = ({ children }) => {
  * Wrap original suspense to provide consistent id's
  * @constructor
  */
-const Suspense: FC<SuspenseProps> & { NS: typeof Namespace } = ({ children, fallback }) => {
+const Suspense: FC<ISuspense> & { NS: typeof Namespace } = ({
+  children,
+  fallback,
+  ErrorBoundary,
+}) => {
   const { store, parentId } = useConsistentSuspense();
   const cacheKey = useReactId(); // stable between re-render on hydration
   const suspenseId = store.createSuspenseId(parentId, cacheKey);
@@ -125,8 +133,7 @@ const Suspense: FC<SuspenseProps> & { NS: typeof Namespace } = ({ children, fall
     </>
   );
   const childrenWithReset = <SuspenseReset>{children}</SuspenseReset>;
-
-  return (
+  const SuspenseElement = (
     <ConsistentSuspenseProvider
       store={store}
       parentId={suspenseId}
@@ -136,6 +143,8 @@ const Suspense: FC<SuspenseProps> & { NS: typeof Namespace } = ({ children, fall
       <DefaultSuspense children={childrenWithReset} fallback={fallbackWithId} />
     </ConsistentSuspenseProvider>
   );
+
+  return ErrorBoundary ? <ErrorBoundary>{SuspenseElement}</ErrorBoundary> : SuspenseElement;
 };
 
 Suspense.NS = Namespace;
