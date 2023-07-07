@@ -10,7 +10,7 @@ class StreamSuspense {
   /**
    * Fired when react stream write complete suspense
    */
-  protected callback: (suspenseId: string) => string | undefined | void;
+  protected callback: (suspenseId: string, errorMessage?: string) => string | undefined | void;
 
   /**
    * @constructor
@@ -76,12 +76,42 @@ class StreamSuspense {
   }
 
   /**
+   * Run callback and remove suspense from memory
+   */
+  protected flushSuspense(id: string, errorMessage?: string): string | undefined | void {
+    const { suspenseId } = this.suspendIds.get(id) ?? {};
+
+    if (!suspenseId) {
+      return;
+    }
+
+    this.suspendIds.delete(id);
+
+    return this.callback(suspenseId, errorMessage);
+  }
+
+  /**
+   * Parse error suspense chunk
+   */
+  protected obtainErrorSuspense(html: string): string | undefined | void {
+    // detect replaces suspense ids
+    const { from, error } =
+      html.match(/\$RX\("(?<from>[^"]+)",\s*"(?<to>[^"]*)",\s*"(?<error>[^"]*)"/)?.groups ?? {};
+
+    if (!error || !from) {
+      return;
+    }
+
+    return this.flushSuspense(from, error);
+  }
+
+  /**
    * Parse complete suspense chunk
    */
   protected obtainCompleteSuspense(html: string): string | undefined | void {
     // each suspense begin from
     if (!html.startsWith('<div hidden id=')) {
-      return;
+      return this.obtainErrorSuspense(html);
     }
 
     // detect replaces suspense ids
@@ -89,18 +119,10 @@ class StreamSuspense {
     const suspendId = this.replaceSuspendIds(from, to);
 
     if (!suspendId) {
-      return;
+      return this.obtainErrorSuspense(html);
     }
 
-    const { suspenseId } = this.suspendIds.get(suspendId) ?? {};
-
-    if (!suspenseId) {
-      return;
-    }
-
-    this.suspendIds.delete(suspendId);
-
-    return this.callback(suspenseId);
+    return this.flushSuspense(suspendId);
   }
 }
 
