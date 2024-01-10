@@ -2,6 +2,7 @@
   "name": "@lomray/consistent-suspense",
   "version": "1.0.0",
   "type": "module",
+  "main": "index.js",
   "description": "React library for generate stable ID inside suspense.",
   "keywords": [
     "js",

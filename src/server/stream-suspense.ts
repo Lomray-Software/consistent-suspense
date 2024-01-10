@@ -1,3 +1,6 @@
+const suspenseRegexp = /\$RC\("(?<from>[^"]+)","(?<to>[^"]+)"\)/;
+const suspenseErrorRegexp = /\$RX\("(?<from>[^"]+)",\s*"(?<to>[^"]*)",\s*"(?<error>[^"]*)"\)/;
+
 /**
  * NOTE: use with renderToPipeableStream
  */
@@ -78,7 +81,11 @@ class StreamSuspense {
   /**
    * Run callback and remove suspense from memory
    */
-  protected flushSuspense(id: string, errorMessage?: string): string | undefined | void {
+  protected flushSuspense(
+    id: string,
+    html: string,
+    errorMessage?: string,
+  ): string | undefined | void {
     const { suspenseId } = this.suspendIds.get(id) ?? {};
 
     if (!suspenseId) {
@@ -87,7 +94,19 @@ class StreamSuspense {
 
     this.suspendIds.delete(id);
 
-    return this.callback(suspenseId, errorMessage);
+    const suspenseReplacers = new Set<string>([]);
+    const replacer = (suspense: string): string => {
+      suspenseReplacers.add(suspense);
+
+      return '';
+    };
+    const modifiedHtml = html
+      .replace(suspenseRegexp, replacer)
+      .replace(suspenseErrorRegexp, replacer);
+    const replacersHtml = `<script>${[...suspenseReplacers].join(';')}</script>`;
+
+    // Return React chunk then custom html then React suspense replacers
+    return modifiedHtml + this.callback(suspenseId, errorMessage) + replacersHtml;
   }
 
   /**
@@ -95,14 +114,13 @@ class StreamSuspense {
    */
   protected obtainErrorSuspense(html: string): string | undefined | void {
     // detect replaces suspense ids
-    const { from, error } =
-      html.match(/\$RX\("(?<from>[^"]+)",\s*"(?<to>[^"]*)",\s*"(?<error>[^"]*)"/)?.groups ?? {};
+    const { from, error } = html.match(suspenseErrorRegexp)?.groups ?? {};
 
     if (!error || !from) {
       return;
     }
 
-    return this.flushSuspense(from, error);
+    return this.flushSuspense(from, html, error);
   }
 
   /**
@@ -110,14 +128,14 @@ class StreamSuspense {
    */
   protected obtainCompleteSuspense(html: string): string | undefined | void {
     // detect replaces suspense ids
-    const { from, to } = html.match(/\$RC\("(?<from>[^"]+)","(?<to>[^"]+)"\)/)?.groups ?? {};
+    const { from, to } = html.match(suspenseRegexp)?.groups ?? {};
     const suspendId = this.replaceSuspendIds(from, to);
 
     if (!suspendId) {
       return this.obtainErrorSuspense(html);
     }
 
-    return this.flushSuspense(suspendId);
+    return this.flushSuspense(suspendId, html);
   }
 }
 
