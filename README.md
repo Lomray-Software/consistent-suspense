@@ -92,7 +92,7 @@ app.use('*', (req, res, next) => {
       // be careful, data can be uint8 or string, you need handle it (use Buffer)
       const additionalHtml = suspenseStream.analyze(data);
 
-      return write(additionalHtml + data, ...args) as boolean;
+      return write(data + additionalHtml, ...args) as boolean;
     }
 });
 ```
