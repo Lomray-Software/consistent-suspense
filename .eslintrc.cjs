@@ -3,6 +3,7 @@ module.exports = {
   extends: [
     'prettier',
     'plugin:prettier/recommended',
+    'plugin:jsx-a11y/recommended',
     '@lomray/eslint-config'
   ],
   ignorePatterns: ['/*.*', 'src/@types'],

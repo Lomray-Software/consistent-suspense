@@ -109,11 +109,6 @@ class StreamSuspense {
    * Parse complete suspense chunk
    */
   protected obtainCompleteSuspense(html: string): string | undefined | void {
-    // each suspense begin from
-    if (!html.startsWith('<div hidden id=')) {
-      return this.obtainErrorSuspense(html);
-    }
-
     // detect replaces suspense ids
     const { from, to } = html.match(/\$RC\("(?<from>[^"]+)","(?<to>[^"]+)"\)/)?.groups ?? {};
     const suspendId = this.replaceSuspendIds(from, to);

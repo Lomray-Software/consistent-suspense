@@ -9,7 +9,7 @@ coverage
 .gitattributes
 .editorconfig
 .eslintignore
-.eslintrc.js
+.eslintrc.cjs
 .lintstagedrc.js
 commitlint.config.js
 rollup.config.js

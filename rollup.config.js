@@ -12,7 +12,7 @@ export default {
   ],
   output: {
     dir: 'lib',
-    format: 'cjs',
+    format: 'es',
     sourcemap: true,
     preserveModules: true,
     preserveModulesRoot: 'src',
@@ -21,23 +21,10 @@ export default {
   external: [],
   plugins: [
     folderInput(),
+    peerDepsExternal({
+      includeDependencies: true,
+    }),
     typescript({
-      transpiler: {
-        typescriptSyntax: 'typescript',
-        otherSyntax: 'babel'
-      },
-      babelConfig: {
-        presets: [
-          '@babel/preset-env',
-          '@babel/preset-react'
-        ],
-        plugins: [
-          ['@babel/plugin-proposal-class-properties'],
-          ['@babel/plugin-transform-runtime', {
-            "absoluteRuntime": false,
-          }],
-        ],
-      },
       tsconfig: resolvedConfig => ({
         ...resolvedConfig,
         declaration: true,
@@ -49,9 +36,6 @@ export default {
           }
         ]
       }),
-    }),
-    peerDepsExternal({
-      includeDependencies: true,
     }),
     json(),
     terser(),
