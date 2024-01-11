@@ -62,7 +62,6 @@ const useConsistentSuspense = (): IConsistentSuspense => useContext(ConsistentSu
 
 /**
  * Generate consistent id
- * prefix - e.g. use for libraries, it needed in hard cases when inside one suspense more than one promise
  */
 const useId = (): string => {
   const { store, suspenseId, namespaceId } = useConsistentSuspense();
@@ -124,7 +123,7 @@ const Suspense: FC<ISuspense> & { NS: typeof Namespace } = ({
   const suspenseId = store.createSuspenseId(parentId, cacheKey);
 
   /**
-   * Add suspense label
+   * Add suspense marker
    */
   const fallbackWithId = (
     <>
