@@ -2,7 +2,8 @@ name: Check PR
 
 on:
   pull_request:
-    branches: [ prod ]
+    branches: [prod, staging]
+    types: [opened, synchronize, reopened]
 
 jobs:
   check:
@@ -10,15 +11,53 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - run: echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > ~/.npmrc
 
       - name: Install dependencies
         run: npm ci --ignore-scripts
 
+      - name: Commit lint PR title
+        run: echo "${{ github.event.pull_request.title }}" | npx --no-install commitlint -g commitlint.config.js
+
       - name: Check eslint
         run: npm run lint:check
 
       - name: Typescript check
         run: npm run ts:check
+
+      - name: Test
+        run: npm run test -- --coverage
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-lcov
+          path: coverage
+
+      - name: Build
+        run: |
+          npm pkg delete scripts.prepare
+          npm run build -- --throw-warnings
+
+  sonarcube:
+    runs-on: ubuntu-latest
+    needs: check
+    concurrency:
+      group: ${{ github.ref }}-sonarcube
+      cancel-in-progress: true
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: coverage-lcov
+          path: coverage
+
+      - uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_CLOUD_TOKEN }}

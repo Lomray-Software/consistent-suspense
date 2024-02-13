@@ -31,17 +31,14 @@
     "strictNullChecks": true,
     "strict": false,
     "pretty": true,
-    "suppressImplicitAnyIndexErrors": true,
     "useDefineForClassFields": true,
-    "baseUrl": "./src",
-    "paths": {},
-    "jsx": "react"
+    "jsx": "react",
+    "baseUrl": "."
   },
   "exclude": [
     "node_modules",
     "lib",
     "commitlint.config.js",
-    "nyc.config.js",
     "rollup.config.js"
   ]
 }

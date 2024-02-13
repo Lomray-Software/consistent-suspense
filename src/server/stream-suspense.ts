@@ -103,7 +103,7 @@ class StreamSuspense {
     const modifiedHtml = html
       .replace(suspenseRegexp, replacer)
       .replace(suspenseErrorRegexp, replacer);
-    const replacersHtml = `<script>${[...suspenseReplacers].join(';')}</script>`;
+    const replacersHtml = `<script>${[...suspenseReplacers].join(';')};</script>`;
 
     // Return React chunk then custom html then React suspense replacers
     return modifiedHtml + this.callback(suspenseId, errorMessage) + replacersHtml;
