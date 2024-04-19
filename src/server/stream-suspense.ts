@@ -104,10 +104,12 @@ class StreamSuspense {
       .replace(suspenseRegexp, replacer)
       .replace(suspenseErrorRegexp, replacer)
       .replace('<script></script>', '');
-    const replacersHtml = `<script>${[...suspenseReplacers].join(';')};</script>`;
+    const replacersHtml =
+      suspenseReplacers.size > 0 ? `<script>${[...suspenseReplacers].join(';')};</script>` : '';
+    const callbackHtml = this.callback(suspenseId, errorMessage) || '';
 
     // Return React chunk then custom html then React suspense replacers
-    return modifiedHtml + this.callback(suspenseId, errorMessage) + replacersHtml;
+    return modifiedHtml + callbackHtml + replacersHtml;
   }
 
   /**
