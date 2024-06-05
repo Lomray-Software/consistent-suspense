@@ -126,10 +126,10 @@ const Suspense: FC<ISuspense> & { NS: typeof Namespace } = ({
    * Add suspense marker
    */
   const fallbackWithId = (
-    <>
+    <Namespace>
       <script data-suspense-id={suspenseId} />
       {fallback}
-    </>
+    </Namespace>
   );
   const childrenWithReset = <SuspenseReset>{children}</SuspenseReset>;
   const SuspenseElement = (
