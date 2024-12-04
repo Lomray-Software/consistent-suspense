@@ -1,5 +1,6 @@
 const suspenseRegexp = /\$RC\("(?<from>[^"]+)","(?<to>[^"]+)"\)/;
-const suspenseErrorRegexp = /\$RX\("(?<from>[^"]+)",\s*"(?<to>[^"]*)",\s*"(?<error>[^"]*)"\)/;
+const suspenseErrorRegexp =
+  /\$RX\("(?<from>[^"]+)"(?:,\s*"(?<to>[^"]*)")?(?:,\s*"(?<error>[^"]*)")?\)/;
 
 /**
  * NOTE: use with renderToPipeableStream
@@ -119,7 +120,7 @@ class StreamSuspense {
     // detect replaces suspense ids
     const { from, error } = html.match(suspenseErrorRegexp)?.groups ?? {};
 
-    if (!error || !from) {
+    if (!from) {
       return;
     }
 
