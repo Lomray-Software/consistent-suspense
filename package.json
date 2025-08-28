@@ -46,7 +46,7 @@
     "@types/sinon": "^17.0.3",
     "@types/sinon-chai": "^3.2.12",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
-    "@vitest/coverage-v8": "^1.5.0",
+    "@vitest/coverage-v8": "^3.2.4",
     "eslint": "^8.56.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-import": "^2.29.1",
@@ -64,7 +64,7 @@
     "sinon": "^17.0.1",
     "sinon-chai": "^3.7.0",
     "typescript": "^5.3.3",
-    "vitest": "^1.5.0"
+    "vitest": "^3.2.4"
   },
   "peerDependencies": {
     "react": ">=17.0.2"
