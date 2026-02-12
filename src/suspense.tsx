@@ -37,22 +37,28 @@ const ConsistentSuspenseContext = React.createContext<IConsistentSuspense>({
  */
 const ConsistentSuspenseProvider: FC<PropsWithChildren<TConsistentSuspenseProvider>> = ({
   children,
+  store,
   parentId = '',
   suspenseId = '',
   namespaceId = null,
-  store = new SuspenseStore(),
 }) => {
+  const [storeInstance] = useState(() => store ?? new SuspenseStore());
+
   const value = useMemo(
     () => ({
       parentId,
       suspenseId,
       namespaceId,
-      store,
+      store: storeInstance,
     }),
-    [suspenseId, store, parentId],
+    [suspenseId, parentId, namespaceId, storeInstance],
   );
 
-  return <ConsistentSuspenseContext.Provider value={value} children={children} />;
+  return (
+    <ConsistentSuspenseContext.Provider value={value}>
+      {children}
+    </ConsistentSuspenseContext.Provider>
+  );
 };
 
 /**
