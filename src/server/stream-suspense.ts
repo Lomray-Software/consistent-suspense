@@ -1,6 +1,9 @@
-const suspenseRegexp = /\$RC\("(?<from>[^"]+)","(?<to>[^"]+)"\)/;
-const suspenseErrorRegexp =
-  /\$RX\("(?<from>[^"]+)"(?:,\s*"(?<to>[^"]*)")?(?:,\s*"(?<error>[^"]*)")?\)/;
+const jsonString = String.raw`"(?:\\.|[^"\\])*"`;
+const completionRegexp = new RegExp(
+  String.raw`\$(?<kind>RC|RX)\(\s*(?<args>${jsonString}(?:,\s*${jsonString}){0,4})\s*\)`,
+  'g',
+);
+const tagRegexp = /^<(?:"[^"]*"|'[^']*'|[^'">])*>/;
 
 /**
  * NOTE: use with renderToPipeableStream
@@ -11,135 +14,138 @@ class StreamSuspense {
    */
   protected suspendIds: Map<string, { suspenseId: string }> = new Map();
 
+  protected pending = '';
+
+  protected templateId: string | undefined;
+
   /**
    * Fired when react stream write complete suspense
    */
   protected callback: (suspenseId: string, errorMessage?: string) => string | undefined | void;
 
-  /**
-   * @constructor
-   */
   protected constructor(callback: StreamSuspense['callback']) {
     this.callback = callback;
   }
 
-  /**
-   * Create stream stores service
-   */
   public static create(callback: StreamSuspense['callback']): StreamSuspense {
     return new StreamSuspense(callback);
   }
 
   /**
-   * Analyze react stream html and call callback if suspense output found.
+   * Return rewritten HTML, withholding unfinished tags and scripts until the next
+   * write. An empty string is intentional; callers must use ?? rather than ||.
    */
   public analyze(html: string): string | undefined | void {
-    this.obtainSuspense(html);
+    this.pending += html;
+    let output = '';
 
-    return this.obtainCompleteSuspense(html);
-  }
+    while (this.pending) {
+      const start = this.pending.indexOf('<');
 
-  /**
-   * Parse suspense and related stores context id from application shell
-   */
-  protected obtainSuspense(html: string): void {
-    // try to find suspense ids with store context ids (react doesn't provide any api to obtain suspend id)
-    const matchedTemplates = [
-      ...html.matchAll(
-        /<template id="(?<templateId>[^"]+)".+?<script data-suspense-id="(?<suspenseId>[^"]+)">/g,
-      ),
-    ];
+      if (start !== 0) {
+        const end = start === -1 ? this.pending.length : start;
 
-    if (!matchedTemplates.length) {
-      return;
-    }
-
-    matchedTemplates.forEach(({ groups }) => {
-      const { templateId, suspenseId } = groups ?? {};
-
-      if (!templateId) {
-        return;
+        output += this.pending.slice(0, end);
+        this.pending = this.pending.slice(end);
+        continue;
       }
 
-      this.suspendIds.set(templateId, { suspenseId });
-    });
+      if (this.pending.startsWith('<!--')) {
+        const end = this.pending.indexOf('-->');
+
+        if (end === -1) {
+          break;
+        }
+
+        output += this.pending.slice(0, end + 3);
+        this.pending = this.pending.slice(end + 3);
+        continue;
+      }
+
+      const tag = this.pending.match(tagRegexp)?.[0];
+
+      if (!tag) {
+        break;
+      }
+
+      if (/^<script(?:\s|>)/i.test(tag)) {
+        const close = /<\/script\s*>/i.exec(this.pending.slice(tag.length));
+
+        if (!close) {
+          break;
+        }
+
+        const end = tag.length + close.index + close[0].length;
+        const script = this.pending.slice(0, end);
+        const suspenseId = tag.match(/\bdata-suspense-id="([^"]+)"/)?.[1];
+
+        if (suspenseId && this.templateId) {
+          this.suspendIds.set(this.templateId, { suspenseId });
+        }
+
+        this.templateId = undefined;
+        output += this.completeScript(script, tag);
+        this.pending = this.pending.slice(end);
+        continue;
+      }
+
+      if (/^<template(?:\s|>)/i.test(tag)) {
+        this.templateId = tag.match(/\bid="([^"]+)"/)?.[1];
+      } else if (!/^<\/template\s*>/i.test(tag)) {
+        this.templateId = undefined;
+      }
+
+      output += tag;
+      this.pending = this.pending.slice(tag.length);
+    }
+
+    return output;
   }
 
   /**
-   * Replace suspend id
+   * Flush a final unfinished token verbatim when the response stream ends.
    */
-  protected replaceSuspendIds(formId: string, toId: string): string | undefined {
-    if (!formId || !this.suspendIds.has(formId)) {
-      return;
-    }
+  public end(): string {
+    const tail = this.pending;
 
-    this.suspendIds.set(toId, this.suspendIds.get(formId)!);
-    this.suspendIds.delete(formId);
+    this.pending = '';
+    this.templateId = undefined;
+    this.suspendIds.clear();
 
-    return toId;
+    return tail;
   }
 
   /**
-   * Run callback and remove suspense from memory
+   * Keep React's helper definitions in place, then emit state for every completed
+   * boundary before executing its reveal/error instruction. Preserve script attrs.
    */
-  protected flushSuspense(
-    id: string,
-    html: string,
-    errorMessage?: string,
-  ): string | undefined | void {
-    const { suspenseId } = this.suspendIds.get(id) ?? {};
+  protected completeScript(script: string, openingTag: string): string {
+    let state = '';
+    const instructions: string[] = [];
+    const rewritten = script.replace(
+      completionRegexp,
+      (instruction: string, ...matches: unknown[]) => {
+        const { kind, args } = matches[matches.length - 1] as { kind: string; args: string };
+        const [from, , error] = JSON.parse(`[${args}]`) as string[];
+        const entry = this.suspendIds.get(from);
 
-    if (!suspenseId) {
-      return;
+        if (!entry) {
+          return instruction;
+        }
+
+        this.suspendIds.delete(from);
+        state += this.callback(entry.suspenseId, kind === 'RX' ? error : undefined) || '';
+        instructions.push(instruction);
+
+        return '';
+      },
+    );
+
+    if (!instructions.length) {
+      return script;
     }
 
-    this.suspendIds.delete(id);
-
-    const suspenseReplacers = new Set<string>([]);
-    const replacer = (suspense: string): string => {
-      suspenseReplacers.add(suspense);
-
-      return '';
-    };
-    const modifiedHtml = html
-      .replace(suspenseRegexp, replacer)
-      .replace(suspenseErrorRegexp, replacer)
-      .replace('<script></script>', '');
-    const replacersHtml =
-      suspenseReplacers.size > 0 ? `<script>${[...suspenseReplacers].join(';')};</script>` : '';
-    const callbackHtml = this.callback(suspenseId, errorMessage) || '';
-
-    // Return React chunk then custom html then React suspense replacers
-    return modifiedHtml + callbackHtml + replacersHtml;
-  }
-
-  /**
-   * Parse error suspense chunk
-   */
-  protected obtainErrorSuspense(html: string): string | undefined | void {
-    // detect replaces suspense ids
-    const { from, error } = html.match(suspenseErrorRegexp)?.groups ?? {};
-
-    if (!from) {
-      return;
-    }
-
-    return this.flushSuspense(from, html, error);
-  }
-
-  /**
-   * Parse complete suspense chunk
-   */
-  protected obtainCompleteSuspense(html: string): string | undefined | void {
-    // detect replaces suspense ids
-    const { from, to } = html.match(suspenseRegexp)?.groups ?? {};
-    const suspendId = this.replaceSuspendIds(from, to);
-
-    if (!suspendId) {
-      return this.obtainErrorSuspense(html);
-    }
-
-    return this.flushSuspense(suspendId, html);
+    return `${rewritten}${state}${openingTag}${instructions.join(';')};</script>`;
   }
 }
 

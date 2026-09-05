@@ -1,0 +1,8 @@
+{
+  "react": "19.2.8",
+  "mode": "production",
+  "chunks": [
+    "<main><!--$?--><template id=\"B:0\"></template><script data-suspense-id=\"a\"></script>wait<!--/$--></main><script>requestAnimationFrame(function(){$RT=performance.now()});</script>",
+    "<script>$RX=function(b,c,d,e,f){var a=document.getElementById(b);a&&(b=a.previousSibling,b.data=\"$!\",a=a.dataset,c&&(a.dgst=c),d&&(a.msg=d),e&&(a.stck=e),f&&(a.cstck=f),b._reactRetry&&b._reactRetry())};;$RX(\"B:0\")</script>"
+  ]
+}
