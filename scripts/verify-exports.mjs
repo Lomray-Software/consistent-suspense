@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process';
 import { cpSync } from 'node:fs';
 import { join } from 'node:path';
 
-for (const name of ['consumer.tsx', 'tsconfig.bundler.json', 'tsconfig.node16.json']) {
+for (const name of ['consumer.tsx', 'boundary.tsx', 'tsconfig.bundler.json', 'tsconfig.node16.json']) {
   cpSync(new URL(`./consumer/${name}`, import.meta.url), join(process.cwd(), name));
 }
 for (const mode of ['bundler', 'node16']) {
