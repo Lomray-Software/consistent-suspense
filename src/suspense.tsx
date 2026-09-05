@@ -1,4 +1,4 @@
-import type { FC, PropsWithChildren, SuspenseProps } from 'react';
+import type { ComponentType, FC, PropsWithChildren, SuspenseProps } from 'react';
 import React, {
   useContext,
   Suspense as DefaultSuspense,
@@ -16,7 +16,7 @@ export interface IConsistentSuspense {
 }
 
 export interface ISuspense extends SuspenseProps {
-  ErrorBoundary?: FC<PropsWithChildren>;
+  ErrorBoundary?: ComponentType<PropsWithChildren>;
 }
 
 type TConsistentSuspenseProvider = Partial<IConsistentSuspense>;
