@@ -3,6 +3,21 @@
   "version": "1.0.0",
   "type": "module",
   "main": "index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.js",
+      "default": "./index.js"
+    },
+    "./server": {
+      "types": "./server/index.d.ts",
+      "import": "./server/index.js",
+      "default": "./server/index.js"
+    },
+    "./package.json": "./package.json",
+    "./*": "./*"
+  },
   "description": "React library for generate stable ID inside suspense.",
   "keywords": [
     "js",
