@@ -86,15 +86,13 @@ class SuspenseStore {
    */
   protected withCache(key: string, callback: () => string): string {
     // return from cache (strict mode fix)
-    if (this.cache.has(key) && !this.isServer) {
+    if (this.cache.has(key)) {
       return this.cache.get(key)!;
     }
 
     const result = callback();
 
-    if (!this.isServer) {
-      this.cache.set(key, result);
-    }
+    this.cache.set(key, result);
 
     return result;
   }
@@ -103,7 +101,7 @@ class SuspenseStore {
    * Generate suspense id
    */
   public createSuspenseId(parentId: string, cacheKey: string): string {
-    return this.withCache(cacheKey, () => {
+    return this.withCache(`suspense:${parentId}:${cacheKey}`, () => {
       let nextSuspenseId = this.makeSuspenseId('a', parentId);
       const currNamespace = this.namespaces.get(nextSuspenseId);
 
@@ -122,7 +120,7 @@ class SuspenseStore {
    * Create new namespace for suspense
    */
   public createNamespaceId(namespaceId: string, cacheKey: string): string {
-    return this.withCache(cacheKey, () => {
+    return this.withCache(`namespace:${namespaceId}:${cacheKey}`, () => {
       const suspenseId = this.getSuspenseByNamespace(namespaceId);
 
       if (!this.namespaces.has(suspenseId)) {
@@ -151,7 +149,7 @@ class SuspenseStore {
    * Generate consistent id which doesn't change inside suspense
    */
   public createId(namespaceId: string, cacheKey: string, isNamespace = false): string {
-    return this.withCache(cacheKey, () => {
+    return this.withCache(`element:${namespaceId}:${cacheKey}`, () => {
       const suspenseId = this.getSuspenseByNamespace(namespaceId);
 
       if (!this.namespaces.has(suspenseId)) {
@@ -189,7 +187,15 @@ class SuspenseStore {
       return;
     }
 
-    this.makeNamespace(suspenseId);
+    // Invalidate the allocations whose counters are being reset. Keep the
+    // sibling boundary counter: it also reserves IDs outside this suspense.
+    this.cache.forEach((id, key) => {
+      if (id.startsWith(`${suspenseId}-`) || id.startsWith(`${suspenseId}|`)) {
+        this.cache.delete(key);
+      }
+    });
+    currNamespace.elementLetter = '';
+    currNamespace.subNamespaces.clear();
   }
 
   /**
@@ -209,10 +215,12 @@ class SuspenseStore {
       return;
     }
 
-    suspenseNamespace.subNamespaces.set(namespaceId, {
-      namespaceLetter: 'a',
-      elementLetter: '',
+    this.cache.forEach((id, key) => {
+      if (id.startsWith(`${namespaceId}-`)) {
+        this.cache.delete(key);
+      }
     });
+    currNamespace.elementLetter = '';
   }
 }
 
