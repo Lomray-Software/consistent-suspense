@@ -39,6 +39,7 @@
     "node_modules",
     "lib",
     "commitlint.config.js",
-    "rollup.config.js"
+    "rollup.config.js",
+    "scripts/consumer"
   ]
 }
