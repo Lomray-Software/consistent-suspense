@@ -71,29 +71,46 @@ const SomeComponent: FC = () => {
 
 ## Analyze suspense html chunks (streaming)
 ```typescript jsx
-import StreamSuspense from '@lomray/consistent-suspense/server';
+import { Transform } from 'node:stream';
+import { StringDecoder } from 'node:string_decoder';
+import { renderToPipeableStream } from 'react-dom/server';
+import { StreamSuspense } from '@lomray/consistent-suspense/server';
 
 app.use('*', (req, res, next) => {
     const suspenseStream = StreamSuspense.create((suspenseId) => {
-      // do something
       const anyState = anyStateManager
         .getStateForSuspense(suspenseId)
         .toJSON();
 
       return `<script>var managerState = ${anyState};</script>`;
     });
+    const decoder = new StringDecoder('utf8');
+    const responseTransform = new Transform({
+      transform(data, encoding, done) {
+        // Decode bytes incrementally, including characters split between writes.
+        const html = decoder.write(data);
+        const rewrittenHtml = suspenseStream.analyze(html);
 
-  /**
-   * then extend write express (or another lib) method
-   * analyze html and add 
-   */
-    const write = res.write.bind(res);
-    res.write = (data, ...args): boolean => {
-      // be careful, data can be uint8 or string, you need handle it (use Buffer)
-      const additionalHtml = suspenseStream.analyze(data);
+        // An empty string means the parser is waiting for the rest of a token.
+        done(null, rewrittenHtml ?? html);
+      },
+      flush(done) {
+        const html = decoder.end();
+        const rewrittenHtml = suspenseStream.analyze(html);
 
-      return write(data + additionalHtml, ...args) as boolean;
-    }
+        done(null, (rewrittenHtml ?? html) + suspenseStream.end());
+      },
+    });
+
+    responseTransform.on('error', next);
+    responseTransform.pipe(res);
+
+    const stream = renderToPipeableStream(<App />, {
+      onShellReady() {
+        stream.pipe(responseTransform);
+      },
+      onShellError: next,
+    });
 });
 ```
 Investigate [demo app](https://github.com/Lomray-Software/vite-template) to more understand how it works.
