@@ -26,6 +26,17 @@ class SuspenseStore {
   protected cache: Map<string, string> = new Map();
 
   /**
+   * Cache keys grouped by the suspense that owns the generated id (element and
+   * sub-namespace ids). Resets touch only their own group instead of the whole cache.
+   */
+  protected keysBySuspense: Map<string, Set<string>> = new Map();
+
+  /**
+   * Cache keys of element ids grouped by their namespace
+   */
+  protected keysByNamespace: Map<string, Set<string>> = new Map();
+
+  /**
    * Detect server side
    */
   protected isServer = typeof window === 'undefined';
@@ -78,7 +89,72 @@ class SuspenseStore {
    * Get suspense id by namespace
    */
   protected getSuspenseByNamespace(namespaceId: string): string {
-    return namespaceId.split('|')[0];
+    const separator = namespaceId.indexOf('|');
+
+    return separator === -1 ? namespaceId : namespaceId.slice(0, separator);
+  }
+
+  /**
+   * Remember which suspense and namespace can reset the cached id
+   */
+  protected indexCacheKey(key: string, id: string): void {
+    const element = id.indexOf('-');
+    const subNamespace = id.indexOf('|');
+    const ownerEnd =
+      element === -1
+        ? subNamespace
+        : subNamespace === -1
+          ? element
+          : Math.min(element, subNamespace);
+
+    // bare suspense ids are never reset
+    if (ownerEnd === -1) {
+      return;
+    }
+
+    this.addCacheKey(this.keysBySuspense, id.slice(0, ownerEnd), key);
+
+    if (element !== -1) {
+      this.addCacheKey(this.keysByNamespace, id.slice(0, element), key);
+    }
+  }
+
+  /**
+   * Add cache key to the group
+   */
+  protected addCacheKey(groups: Map<string, Set<string>>, group: string, key: string): void {
+    const keys = groups.get(group);
+
+    if (keys) {
+      keys.add(key);
+    } else {
+      groups.set(group, new Set<string>().add(key));
+    }
+  }
+
+  /**
+   * Drop cached ids of the group which still start with one of the prefixes
+   */
+  protected invalidateCacheGroup(
+    groups: Map<string, Set<string>>,
+    group: string,
+    prefixes: string[],
+  ): void {
+    const keys = groups.get(group);
+
+    if (!keys) {
+      return;
+    }
+
+    groups.delete(group);
+
+    for (const key of keys) {
+      const id = this.cache.get(key);
+
+      if (id !== undefined && prefixes.some((prefix) => id.startsWith(prefix))) {
+        this.cache.delete(key);
+      }
+    }
   }
 
   /**
@@ -86,13 +162,16 @@ class SuspenseStore {
    */
   protected withCache(key: string, callback: () => string): string {
     // return from cache (strict mode fix)
-    if (this.cache.has(key)) {
-      return this.cache.get(key)!;
+    const cached = this.cache.get(key);
+
+    if (cached !== undefined) {
+      return cached;
     }
 
     const result = callback();
 
     this.cache.set(key, result);
+    this.indexCacheKey(key, result);
 
     return result;
   }
@@ -189,11 +268,10 @@ class SuspenseStore {
 
     // Invalidate the allocations whose counters are being reset. Keep the
     // sibling boundary counter: it also reserves IDs outside this suspense.
-    this.cache.forEach((id, key) => {
-      if (id.startsWith(`${suspenseId}-`) || id.startsWith(`${suspenseId}|`)) {
-        this.cache.delete(key);
-      }
-    });
+    this.invalidateCacheGroup(this.keysBySuspense, suspenseId, [
+      `${suspenseId}-`,
+      `${suspenseId}|`,
+    ]);
     currNamespace.elementLetter = '';
     currNamespace.subNamespaces.clear();
   }
@@ -215,11 +293,7 @@ class SuspenseStore {
       return;
     }
 
-    this.cache.forEach((id, key) => {
-      if (id.startsWith(`${namespaceId}-`)) {
-        this.cache.delete(key);
-      }
-    });
+    this.invalidateCacheGroup(this.keysByNamespace, namespaceId, [`${namespaceId}-`]);
     currNamespace.elementLetter = '';
   }
 }

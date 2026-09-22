@@ -110,4 +110,35 @@ describe('SuspenseStore', () => {
     expect(result3).toBe('ns|a-a');
     expect(result4).toBe('ns|a-b');
   });
+  it('resets only the ids owned by the suspense or namespace', () => {
+    const store = new SuspenseStore();
+    const first = store.createSuspenseId('', 'first');
+    const second = store.createSuspenseId('', 'second');
+    const child = store.createSuspenseId(first, 'child');
+    const namespace = store.createNamespaceId(first, 'namespace');
+
+    store.createId(first, 'own');
+    store.createId(second, 'other');
+    store.createId(child, 'nested');
+    store.createId(namespace, 'scoped', true);
+    store.resetSuspense(first);
+
+    // ids of other boundaries and of the nested boundary survive the reset
+    expect(store.createId(second, 'other')).toBe('b-a');
+    expect(store.createId(child, 'nested')).toBe('a:a-a');
+    expect(store.createSuspenseId(first, 'child')).toBe(child);
+    // own element ids and sub-namespaces start over
+    expect(store.createId(first, 'own')).toBe('a-a');
+    expect(store.createNamespaceId(first, 'namespace')).toBe(namespace);
+    expect(store.createId(namespace, 'scoped', true)).toBe('a|a-a');
+
+    // a cache key that moved to another namespace ignores the old namespace reset
+    const other = store.createNamespaceId(second, 'other-namespace');
+
+    store.createId(namespace, 'moved', true);
+    store.resetNamespace(namespace);
+    expect(store.createId(other, 'moved', true)).toBe('b|a-a');
+    store.resetNamespace(namespace);
+    expect(store.createId(other, 'moved', true)).toBe('b|a-a');
+  });
 });

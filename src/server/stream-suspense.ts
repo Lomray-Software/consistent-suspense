@@ -3,7 +3,13 @@ const completionRegexp = new RegExp(
   String.raw`\$(?<kind>RC|RX)\(\s*(?<args>${jsonString}(?:,\s*${jsonString}){0,4})\s*\)`,
   'g',
 );
-const tagRegexp = /^<(?:"[^"]*"|'[^']*'|[^'">])*>/;
+const tagRegexp = /<(?:"[^"]*"|'[^']*'|[^'">])*>/y;
+const scriptCloseRegexp = /<\/script\s*>/gi;
+const SLASH = 47;
+const UPPER_S = 83;
+const UPPER_T = 84;
+const LOWER_S = 115;
+const LOWER_T = 116;
 
 /**
  * NOTE: use with renderToPipeableStream
@@ -36,47 +42,56 @@ class StreamSuspense {
    * write. An empty string is intentional; callers must use ?? rather than ||.
    */
   public analyze(html: string): string | undefined | void {
-    this.pending += html;
+    const source = this.pending + html;
+    const { length } = source;
     let output = '';
+    let position = 0;
 
-    while (this.pending) {
-      const start = this.pending.indexOf('<');
+    while (position < length) {
+      const start = source.indexOf('<', position);
 
-      if (start !== 0) {
-        const end = start === -1 ? this.pending.length : start;
+      if (start !== position) {
+        const end = start === -1 ? length : start;
 
-        output += this.pending.slice(0, end);
-        this.pending = this.pending.slice(end);
+        output += source.slice(position, end);
+        position = end;
         continue;
       }
 
-      if (this.pending.startsWith('<!--')) {
-        const end = this.pending.indexOf('-->');
+      if (source.startsWith('<!--', position)) {
+        const end = source.indexOf('-->', position);
 
         if (end === -1) {
           break;
         }
 
-        output += this.pending.slice(0, end + 3);
-        this.pending = this.pending.slice(end + 3);
+        output += source.slice(position, end + 3);
+        position = end + 3;
         continue;
       }
 
-      const tag = this.pending.match(tagRegexp)?.[0];
+      tagRegexp.lastIndex = position;
+
+      const tag = tagRegexp.exec(source)?.[0];
 
       if (!tag) {
         break;
       }
 
-      if (/^<script(?:\s|>)/i.test(tag)) {
-        const close = /<\/script\s*>/i.exec(this.pending.slice(tag.length));
+      // Only script, template and closing tags need the regexp checks below.
+      const second = source.charCodeAt(position + 1);
+
+      if ((second === LOWER_S || second === UPPER_S) && /^<script(?:\s|>)/i.test(tag)) {
+        scriptCloseRegexp.lastIndex = position + tag.length;
+
+        const close = scriptCloseRegexp.exec(source);
 
         if (!close) {
           break;
         }
 
-        const end = tag.length + close.index + close[0].length;
-        const script = this.pending.slice(0, end);
+        const end = close.index + close[0].length;
+        const script = source.slice(position, end);
         const suspenseId = tag.match(/\bdata-suspense-id="([^"]+)"/)?.[1];
 
         if (suspenseId && this.templateId) {
@@ -85,19 +100,21 @@ class StreamSuspense {
 
         this.templateId = undefined;
         output += this.completeScript(script, tag);
-        this.pending = this.pending.slice(end);
+        position = end;
         continue;
       }
 
-      if (/^<template(?:\s|>)/i.test(tag)) {
+      if ((second === LOWER_T || second === UPPER_T) && /^<template(?:\s|>)/i.test(tag)) {
         this.templateId = tag.match(/\bid="([^"]+)"/)?.[1];
-      } else if (!/^<\/template\s*>/i.test(tag)) {
+      } else if (second !== SLASH || !/^<\/template\s*>/i.test(tag)) {
         this.templateId = undefined;
       }
 
       output += tag;
-      this.pending = this.pending.slice(tag.length);
+      position += tag.length;
     }
+
+    this.pending = source.slice(position);
 
     return output;
   }
