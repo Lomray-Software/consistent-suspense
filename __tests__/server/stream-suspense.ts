@@ -126,4 +126,24 @@ describe('StreamSuspense', () => {
     await finished;
     expect(Buffer.concat(chunks).toString()).toBe('plain text<scr');
   });
+  it('rewrites completions the same way for any chunking', () => {
+    const boundary =
+      '<!--$?--><template id="B:0"></template><script data-suspense-id="a"></script><span>loading</span><!--/$-->';
+    const completion = '<div hidden id="S:0"><p>done</p></div><script>$RC("B:0","S:0")</script>';
+    const html = `<!DOCTYPE html><html><body>${boundary}${completion}</body></html>`;
+    const analyze = (chunks: string[]): string => {
+      const stream = StreamSuspense.create((suspenseId) => `<!--state:${suspenseId}-->`);
+
+      return `${chunks.map((chunk) => stream.analyze(chunk) ?? chunk).join('')}${stream.end()}`;
+    };
+    const expected = analyze([html]);
+
+    expect(expected).toContain('<script></script><!--state:a--><script>$RC("B:0","S:0");</script>');
+
+    for (let size = 1; size < html.length; size += 7) {
+      const chunks = html.match(new RegExp(`.{1,${size}}`, 'gs'))!;
+
+      expect(analyze(chunks)).toBe(expected);
+    }
+  });
 });
