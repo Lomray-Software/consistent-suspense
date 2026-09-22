@@ -5,6 +5,8 @@ on:
     branches: [prod, staging]
     types: [opened, synchronize, reopened]
 
+permissions: {}
+
 env:
   NODE_VERSION: 22.23.2
   ENABLE_CACHE: yes
@@ -12,6 +14,8 @@ env:
 jobs:
   prepare:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     concurrency:
       group: ${{ github.ref }}-prepare
       cancel-in-progress: true
@@ -28,13 +32,18 @@ jobs:
 
   check:
     name: Check PR
-    needs: [prepare]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    needs: [prepare]
+    concurrency:
+      group: ${{ github.ref }}-check
+      cancel-in-progress: true
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ needs.prepare.outputs.node-version }}
           cache: ${{ needs.prepare.outputs.enable-cache == 'yes' && 'npm' || '' }}
@@ -43,7 +52,9 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Commit lint PR title
-        run: echo "${{ github.event.pull_request.title }}" | npx --no-install commitlint -g commitlint.config.js
+        run: printf '%s\n' "$PR_TITLE" | npx --no-install commitlint -g commitlint.config.js
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
 
       - name: Check eslint
         run: npm run lint:check
@@ -54,7 +65,7 @@ jobs:
       - name: Test
         run: npm run test -- --coverage
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: coverage-lcov
           path: coverage
@@ -62,26 +73,34 @@ jobs:
       - name: Build
         run: |
           npm pkg delete scripts.prepare
-          npm run build -- --throw-warnings
+          npm run build -- --failAfterWarnings
+
+      - name: Test package
+        run: npm run test:package
 
   sonarcube:
+    # Dependabot runs have no access to the analysis token.
+    if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     needs: [check]
     concurrency:
       group: ${{ github.ref }}-sonarcube
       cancel-in-progress: true
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: coverage-lcov
           path: coverage
 
-      - uses: SonarSource/sonarcloud-github-action@master
+      - uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4 # v8.2.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_CLOUD_TOKEN }}

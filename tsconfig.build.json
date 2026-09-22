@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "declarationDir": "lib",
+    "outDir": "lib",
+    "rootDir": "src",
+    "types": ["react"],
+    "importHelpers": true,
+    "allowJs": false,
+    "noEmitOnError": true
+  },
+  "include": ["src"]
+}
