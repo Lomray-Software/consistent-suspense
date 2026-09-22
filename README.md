@@ -10,9 +10,15 @@
 [![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=consistent-suspense&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=consistent-suspense)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=consistent-suspense&metric=coverage)](https://sonarcloud.io/summary/new_code?id=consistent-suspense)
 
-React `useId()` doesn't return a stable ID when used inside `<Suspense>`. This is a huge problem that slows down the development of libraries for concurrent mode in React. [Read related issue.](https://github.com/facebook/react/issues/24669)
+This package associates generated IDs and streamed HTML with React Suspense
+boundaries. It is intended for libraries that coordinate boundary-scoped state
+during streaming SSR. It is not a data-fetching library or a general replacement
+for React's `useId`. See the [original motivating issue](https://github.com/facebook/react/issues/24669)
+for the retry behavior that prompted it.
 
-Another problem is the synchronization state of the client and server when streaming html. This package also helps to analyze suspense chunks.
+The peer range starts at React and React DOM 18. That range does not establish
+compatibility with every future streaming HTML format. The minimal example below
+is checked with release 2.0.9 and React/React DOM 18.3.1.
 
 ## Getting started
 
@@ -23,53 +29,48 @@ npm i --save @lomray/consistent-suspense
 ```
 
 ## How to use
-```typescript jsx
+
+Use the provider and Suspense boundary from this package together. For SSR, render
+a fresh provider for each request. If you supply its optional `store` prop, create
+a new `SuspenseStore` for each request, never one shared across requests.
+
+<!-- docs-test:example -->
+```tsx
+import React from 'react';
 import { ConsistentSuspenseProvider, Suspense, useId } from '@lomray/consistent-suspense';
 
-/**
- * 1. Wrap your root component in ConsistentSuspenseProvider
- * 2. Use <Suspense> component from lib
- */
-const App: FC = () => {
-    const [state] = useState();
+const Field = () => {
+  const id = useId();
+  return (
+    <>
+      <label htmlFor={id}>Name</label>
+      <input id={id} />
+    </>
+  );
+};
 
-    return (
-        <ConsistentSuspenseProvider>
-          <Suspense fallback={<div>Loading...</div>}>
-            <SomeComponent />
-          </Suspense>
-
-          { 
-              /** in case when we have more then 1 async component inside suspense, 
-                we have to use 'NS' wrapper **/ 
-          }
-          <Suspense fallback={<div>Loading...</div>}>
-            <Suspense.NS> { /** this wrapper only for async component **/ }
-                <SomeComponent />
-            </Suspense.NS>
-
-            <Suspense.NS>
-                <SomeComponent />
-            </Suspense.NS>
-          </Suspense>
-        </ConsistentSuspenseProvider>
-    )
-}
-
-/**
- * 3. Now any components inside ConsistentSuspenseProvider can generate consistent id's
- */
-const SomeComponent: FC = () => {
-    // this id will be the same between client and server
-    const id = useId();
-    
-    return (
-        <div>I'm have the same id on server and client: {id}</div>
-    )
-}
+export const App = () => (
+  <ConsistentSuspenseProvider>
+    <Suspense fallback={<p>Loading...</p>}>
+      <Field />
+    </Suspense>
+  </ConsistentSuspenseProvider>
+);
 ```
 
+This field does not suspend; it demonstrates the provider and ID wiring. When a
+boundary has several independently suspending children, wrap each in
+`<Suspense.NS>...</Suspense.NS>` to give it a separate namespace. Keep the server
+and client component structure consistent; IDs do not repair hydration mismatches.
+
 ## Analyze suspense html chunks (streaming)
+
+The server entry point is `@lomray/consistent-suspense/server`. This integration
+sketch assumes your application supplies `app`, `App` and its error handling.
+Create the analyzer inside the request handler. The callback may insert HTML;
+never interpolate untrusted state directly into a script. Use an audited serializer
+and your application's CSP strategy if you add state transfer.
+
 ```typescript jsx
 import { Transform } from 'node:stream';
 import { StringDecoder } from 'node:string_decoder';
@@ -78,11 +79,9 @@ import { StreamSuspense } from '@lomray/consistent-suspense/server';
 
 app.use('*', (req, res, next) => {
     const suspenseStream = StreamSuspense.create((suspenseId) => {
-      const anyState = anyStateManager
-        .getStateForSuspense(suspenseId)
-        .toJSON();
-
-      return `<script>var managerState = ${anyState};</script>`;
+      // Observe completion without inserting application data into HTML.
+      console.log('Completed Suspense boundary:', suspenseId);
+      return '';
     });
     const decoder = new StringDecoder('utf8');
     const responseTransform = new Transform({

@@ -37,6 +37,7 @@
   },
   "exclude": [
     "node_modules",
+    "docs-tests",
     "lib",
     "commitlint.config.js",
     "rollup.config.js",
