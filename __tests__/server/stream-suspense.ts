@@ -1,6 +1,8 @@
 import { Transform } from 'node:stream';
 import { describe, expect, it } from 'vitest';
+// eslint-disable-next-line import-x/extensions -- JSON modules resolve only with the extension.
 import development from '../../__helpers__/fixtures/react19-error-development.json';
+// eslint-disable-next-line import-x/extensions -- JSON modules resolve only with the extension.
 import production from '../../__helpers__/fixtures/react19-error-production.json';
 import { StreamSuspense } from '../../src/server';
 

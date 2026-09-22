@@ -12,7 +12,10 @@ class ErrorBoundary extends Component<PropsWithChildren, { failed: boolean }> {
   }
 
   render() {
-    return this.state.failed ? <p>Error</p> : this.props.children;
+    const { failed: isFailed } = this.state;
+    const { children } = this.props;
+
+    return isFailed ? <p>Error</p> : children;
   }
 }
 

@@ -5,12 +5,20 @@ import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
 const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
-const snippet = readme.split('## Analyze suspense html chunks (streaming)')[1].match(/```typescript jsx\n([\s\S]*?)```/)[1];
-const ts = (await import(pathToFileURL(`${process.cwd()}/node_modules/typescript/lib/typescript.js`))).default;
+const snippet = readme
+  .split('## Analyze suspense html chunks (streaming)')[1]
+  .match(/```typescript jsx\n([\s\S]*?)```/)[1];
+const ts = (
+  await import(pathToFileURL(`${process.cwd()}/node_modules/typescript/lib/typescript.js`))
+).default;
 const source = `import React from 'react';\n${snippet}`;
-const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, jsx: ts.JsxEmit.React } });
+const { outputText } = ts.transpileModule(source, {
+  compilerOptions: { module: ts.ModuleKind.ESNext, jsx: ts.JsxEmit.React },
+});
 writeFileSync('readme-example.mjs', outputText);
-writeFileSync('readme-probe.mjs', `
+writeFileSync(
+  'readme-probe.mjs',
+  `
 import assert from 'node:assert/strict';
 import { Writable } from 'node:stream';
 import React from 'react';
@@ -33,7 +41,8 @@ const result = {shellEndsWithUndefined:chunks[0].endsWith('undefined'),duplicate
 console.log(JSON.stringify(result));
 assert.deepEqual(result, {shellEndsWithUndefined:false,duplicateSegmentCount:1,duplicateRevealCalls:1,firstRevealBeforeState:false});
 console.log('README named import and response transform: PASS');
-`);
+`,
+);
 const result = spawnSync(process.execPath, ['readme-probe.mjs'], { encoding: 'utf8' });
 process.stdout.write(result.stdout + result.stderr);
 assert.equal(result.status, 0);

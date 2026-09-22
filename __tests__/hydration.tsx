@@ -89,7 +89,7 @@ describe('streamed hydration', () => {
       const warnings: string[] = [];
       const error = vi
         .spyOn(console, 'error')
-        .mockImplementation((...args) => warnings.push(format(...args)));
+        .mockImplementation((...args: unknown[]) => warnings.push(format(...args)));
       const root = hydrateRoot(container, tree(), {
         onRecoverableError: (e) => warnings.push(String(e)),
       });
