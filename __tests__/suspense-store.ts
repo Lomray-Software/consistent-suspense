@@ -1,5 +1,4 @@
-import { expect } from 'chai';
-import { describe, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { SuspenseStore } from '../src';
 
 describe('SuspenseStore', () => {
@@ -9,14 +8,14 @@ describe('SuspenseStore', () => {
     const namespaceId = store.createNamespaceId(suspenseId, 'namespace');
 
     for (let retry = 0; retry < 3; retry++) {
-      expect(store.createSuspenseId('', 'boundary')).to.equal(suspenseId);
-      expect(store.createNamespaceId(suspenseId, 'namespace')).to.equal(namespaceId);
-      expect(store.createId(namespaceId, 'child', true)).to.equal('a|a-a');
+      expect(store.createSuspenseId('', 'boundary')).toBe(suspenseId);
+      expect(store.createNamespaceId(suspenseId, 'namespace')).toBe(namespaceId);
+      expect(store.createId(namespaceId, 'child', true)).toBe('a|a-a');
     }
 
-    expect(store.createId(namespaceId, 'new-child', true)).to.equal('a|a-b');
-    expect(store.createNamespaceId(suspenseId, 'new-namespace')).to.equal('a|b');
-    expect(store.createSuspenseId('', 'new-boundary')).to.equal('b');
+    expect(store.createId(namespaceId, 'new-child', true)).toBe('a|a-b');
+    expect(store.createNamespaceId(suspenseId, 'new-namespace')).toBe('a|b');
+    expect(store.createSuspenseId('', 'new-boundary')).toBe('b');
   });
 
   it('keeps cache and counters consistent for new children after resets', () => {
@@ -28,17 +27,17 @@ describe('SuspenseStore', () => {
     store.createNamespaceId(suspenseId, 'sibling-namespace');
     store.createId(namespaceId, 'old', true);
     store.resetNamespace(namespaceId);
-    expect(store.createId(namespaceId, 'new', true)).to.equal('a|a-a');
-    expect(store.createId(namespaceId, 'old', true)).to.equal('a|a-b');
-    expect(store.createNamespaceId(suspenseId, 'third-namespace')).to.equal('a|c');
+    expect(store.createId(namespaceId, 'new', true)).toBe('a|a-a');
+    expect(store.createId(namespaceId, 'old', true)).toBe('a|a-b');
+    expect(store.createNamespaceId(suspenseId, 'third-namespace')).toBe('a|c');
 
     store.resetSuspense(suspenseId);
-    expect(store.createId(suspenseId, 'child')).to.equal('a-a');
-    expect(store.createId(suspenseId, 'new-child')).to.equal('a-b');
-    expect(store.createNamespaceId(suspenseId, 'new-namespace')).to.equal('a|a');
-    expect(store.createNamespaceId(suspenseId, 'namespace')).to.equal('a|b');
-    expect(store.createId('a|b', 'old', true)).to.equal('a|b-a');
-    expect(store.createSuspenseId('', 'third-boundary')).to.equal('c');
+    expect(store.createId(suspenseId, 'child')).toBe('a-a');
+    expect(store.createId(suspenseId, 'new-child')).toBe('a-b');
+    expect(store.createNamespaceId(suspenseId, 'new-namespace')).toBe('a|a');
+    expect(store.createNamespaceId(suspenseId, 'namespace')).toBe('a|b');
+    expect(store.createId('a|b', 'old', true)).toBe('a|b-a');
+    expect(store.createSuspenseId('', 'third-boundary')).toBe('c');
   });
 
   it('should create suspense id', () => {
@@ -47,9 +46,9 @@ describe('SuspenseStore', () => {
     const result2 = suspenseStore.createSuspenseId('root', 'hook-2');
     const result3 = suspenseStore.createSuspenseId('second', 'hook-3');
 
-    expect(result).to.equal('root:a');
-    expect(result2).to.equal('root:b');
-    expect(result3).to.equal('second:a');
+    expect(result).toBe('root:a');
+    expect(result2).toBe('root:b');
+    expect(result3).toBe('second:a');
   });
 
   it('should create namespace id', () => {
@@ -59,10 +58,10 @@ describe('SuspenseStore', () => {
     const result3 = suspenseStore.createNamespaceId('a', 'hook-6');
     const result4 = suspenseStore.createNamespaceId('a', 'hook-7');
 
-    expect(result).to.equal('a|a');
-    expect(result3).to.equal('a|b');
-    expect(result4).to.equal('a|c');
-    expect(result2).to.equal('b|a');
+    expect(result).toBe('a|a');
+    expect(result3).toBe('a|b');
+    expect(result4).toBe('a|c');
+    expect(result2).toBe('b|a');
   });
 
   it('should create id', () => {
@@ -71,9 +70,9 @@ describe('SuspenseStore', () => {
     const result2 = suspenseStore.createId('a', 'hook-9');
     const result3 = suspenseStore.createId('b', 'hook-10');
 
-    expect(result).to.equal('a-a');
-    expect(result2).to.equal('a-b');
-    expect(result3).to.equal('b-a');
+    expect(result).toBe('a-a');
+    expect(result2).toBe('a-b');
+    expect(result3).toBe('b-a');
   });
 
   it("should reset generated id's for suspense", () => {
@@ -88,10 +87,10 @@ describe('SuspenseStore', () => {
     const result3 = suspenseStore.createId(suspenseId, 'hook-12');
     const result4 = suspenseStore.createId(suspenseId, 'hook-13');
 
-    expect(result1).to.equal('root:a-a');
-    expect(result2).to.equal('root:a-b');
-    expect(result3).to.equal('root:a-a');
-    expect(result4).to.equal('root:a-b');
+    expect(result1).toBe('root:a-a');
+    expect(result2).toBe('root:a-b');
+    expect(result3).toBe('root:a-a');
+    expect(result4).toBe('root:a-b');
   });
 
   it("should reset generated id's for namespace", () => {
@@ -106,9 +105,9 @@ describe('SuspenseStore', () => {
     const result3 = suspenseStore.createId(namespaceId, 'hook-19');
     const result4 = suspenseStore.createId(namespaceId, 'hook-20');
 
-    expect(result1).to.equal('ns|a-a');
-    expect(result2).to.equal('ns|a-b');
-    expect(result3).to.equal('ns|a-a');
-    expect(result4).to.equal('ns|a-b');
+    expect(result1).toBe('ns|a-a');
+    expect(result2).toBe('ns|a-b');
+    expect(result3).toBe('ns|a-a');
+    expect(result4).toBe('ns|a-b');
   });
 });

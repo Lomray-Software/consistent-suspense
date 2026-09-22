@@ -12,5 +12,5 @@ it('loads the build configuration in native Node without import assertion syntax
     { encoding: 'utf8' },
   );
 
-  expect(output).toContain('Typescript');
+  expect(output).toContain('typescript');
 });
