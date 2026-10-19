@@ -54,7 +54,7 @@
   },
   "devDependencies": {
     "@commitlint/cli": "^19.4.1",
-    "@commitlint/config-conventional": "^19.4.1",
+    "@commitlint/config-conventional": "^21.2.3",
     "@lomray/eslint-config": "^7.0.0",
     "@lomray/eslint-config-react": "^7.0.0",
     "@lomray/prettier-config": "^3.0.0",
