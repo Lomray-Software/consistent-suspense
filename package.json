@@ -53,8 +53,8 @@
     "test:package": "node scripts/test-package.mjs"
   },
   "devDependencies": {
-    "@commitlint/cli": "^19.4.1",
-    "@commitlint/config-conventional": "^19.4.1",
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4",
     "@lomray/eslint-config": "^7.0.0",
     "@lomray/eslint-config-react": "^7.0.0",
     "@lomray/prettier-config": "^3.0.0",
@@ -90,5 +90,13 @@
   "peerDependencies": {
     "react": ">=18.0.0",
     "react-dom": ">=18.0.0"
+  },
+  "overrides": {
+    "eslint-plugin-jsx-a11y-x": {
+      "minimatch": "^11.0.1"
+    },
+    "eslint-plugin-sonarjs": {
+      "minimatch": "^11.0.1"
+    }
   }
 }
